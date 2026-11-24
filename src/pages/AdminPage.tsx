@@ -1,6 +1,7 @@
 import {Database, Globe, Lock, LogOut, Pencil, Plus, Trash2, X} from 'lucide-react';
 import {useCallback, useEffect, useState} from 'react';
 import {useSeo} from '../hooks/useSeo';
+import {apiFetch, ApiRequestError} from '../lib/api';
 import {formatBrl, formatDateTimeBr, STUDIO_IMAGE_PRESETS} from '../lib/format';
 import type {
   AdminAuthStatus,
@@ -75,10 +76,10 @@ export function AdminPage() {
   const [newBrandCountry, setNewBrandCountry] = useState('');
   const [newBrandSpec, setNewBrandSpec] = useState('');
   const [newBrandDesc, setNewBrandDesc] = useState('');
+  const [newBrandImg, setNewBrandImg] = useState(STUDIO_IMAGE_PRESETS[2].url);
 
   useEffect(() => {
-    fetch('/api/admin/auth-status')
-      .then((res) => res.json() as Promise<AdminAuthStatus>)
+    apiFetch<AdminAuthStatus>('/api/admin/auth-status')
       .then((status) => setAuthStatus(status))
       .catch(() => setAuthError('Não foi possível verificar o status de autenticação.'));
   }, []);
@@ -87,26 +88,12 @@ export function AdminPage() {
     try {
       setDataLoading(true);
       const headers = {Authorization: `Bearer ${authToken}`};
-      const [ovRes, qRes, pRes, cRes, bRes] = await Promise.all([
-        fetch('/api/admin/overview', {headers}),
-        fetch('/api/admin/quotes', {headers}),
-        fetch('/api/products'),
-        fetch('/api/categories'),
-        fetch('/api/brands'),
-      ]);
-
-      if (ovRes.status === 401 || qRes.status === 401) {
-        setToken(null);
-        setAuthError('Sua sessão administrativa expirou. Entre novamente.');
-        return;
-      }
-
       const [ovJson, qJson, pJson, cJson, bJson] = await Promise.all([
-        ovRes.json() as Promise<{status: DatabaseStatusInfo}>,
-        qRes.json() as Promise<{quotes: QuoteRequest[]}>,
-        pRes.json() as Promise<{products: Product[]}>,
-        cRes.json() as Promise<{categories: Category[]}>,
-        bRes.json() as Promise<{brands: Brand[]}>,
+        apiFetch<{status: DatabaseStatusInfo}>('/api/admin/overview', {headers}),
+        apiFetch<{quotes: QuoteRequest[]}>('/api/admin/quotes', {headers}),
+        apiFetch<{products: Product[]}>('/api/products'),
+        apiFetch<{categories: Category[]}>('/api/categories'),
+        apiFetch<{brands: Brand[]}>('/api/brands'),
       ]);
 
       setDbStatus(ovJson.status);
@@ -114,7 +101,12 @@ export function AdminPage() {
       setProducts(pJson.products);
       setCategories(cJson.categories);
       setBrands(bJson.brands);
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 401) {
+        setToken(null);
+        setAuthError('Sua sessão administrativa expirou. Entre novamente.');
+        return;
+      }
       setActionError('Erro ao carregar dados do painel administrativo.');
     } finally {
       setDataLoading(false);
@@ -341,7 +333,7 @@ export function AdminPage() {
     if (!token) return;
     setActionError(null);
     try {
-      const res = await fetch('/api/admin/brands', {
+      await apiFetch('/api/admin/brands', {
         method: 'POST',
         headers: {'Content-Type': 'application/json', Authorization: `Bearer ${token}`},
         body: JSON.stringify({
@@ -349,10 +341,9 @@ export function AdminPage() {
           country: newBrandCountry,
           specialty: newBrandSpec,
           description: newBrandDesc,
+          imageUrl: newBrandImg,
         }),
       });
-      const data = (await res.json()) as {error?: string};
-      if (!res.ok) throw new Error(data.error || 'Erro ao criar marca.');
       setNewBrandName('');
       setNewBrandCountry('');
       setNewBrandSpec('');
@@ -945,6 +936,17 @@ export function AdminPage() {
                 onChange={(e) => setNewBrandDesc(e.target.value)}
                 className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100"
               />
+              <select
+                value={newBrandImg}
+                onChange={(e) => setNewBrandImg(e.target.value)}
+                className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100"
+              >
+                {STUDIO_IMAGE_PRESETS.map((img) => (
+                  <option key={img.url} value={img.url}>
+                    {img.label}
+                  </option>
+                ))}
+              </select>
               <button
                 type="submit"
                 className="rounded-md bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 cursor-pointer"

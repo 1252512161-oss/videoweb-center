@@ -8,7 +8,6 @@ const NAV_ITEMS = [
   {to: '/catalogo', label: 'Catálogo', end: false},
   {to: '/marcas', label: 'Marcas', end: false},
   {to: '/solucoes', label: 'Soluções', end: false},
-  {to: '/admin', label: 'Admin', end: false},
 ];
 
 export function Navbar() {

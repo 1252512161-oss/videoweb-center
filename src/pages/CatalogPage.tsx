@@ -1,8 +1,9 @@
-import {RotateCcw, Search} from 'lucide-react';
+import {RefreshCw, RotateCcw, Search} from 'lucide-react';
 import {useEffect, useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import {Link, useSearchParams} from 'react-router-dom';
 import {ProductCard} from '../components/ProductCard';
 import {useSeo} from '../hooks/useSeo';
+import {apiFetch} from '../lib/api';
 import type {Brand, Category, Product} from '../types/domain';
 
 export function CatalogPage() {
@@ -19,6 +20,7 @@ export function CatalogPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const activeCategory = categories.find((c) => c.slug === categoriaParam);
   const activeBrand = brands.find((b) => b.slug === marcaParam);
@@ -52,20 +54,18 @@ export function CatalogPage() {
   }, [qParam]);
 
   useEffect(() => {
-    Promise.all([fetch('/api/categories'), fetch('/api/brands')])
-      .then(async ([catRes, brandRes]) => {
-        if (!catRes.ok || !brandRes.ok) return;
-        const [catJson, brandJson] = await Promise.all([
-          catRes.json() as Promise<{categories: Category[]}>,
-          brandRes.json() as Promise<{brands: Brand[]}>,
-        ]);
-        setCategories(catJson.categories);
-        setBrands(brandJson.brands);
+    Promise.all([
+      apiFetch<{categories: Category[]}>('/api/categories'),
+      apiFetch<{brands: Brand[]}>('/api/brands'),
+    ])
+      .then(([catJson, brandJson]) => {
+        setCategories(Array.isArray(catJson.categories) ? catJson.categories : []);
+        setBrands(Array.isArray(brandJson.brands) ? brandJson.brands : []);
       })
-      .catch(() => {
-        // Handled by main catalog fetch
+      .catch((err) => {
+        console.error('[VideoWeb CatalogPage] Error loading taxonomies:', err);
       });
-  }, []);
+  }, [retryCount]);
 
   useEffect(() => {
     let active = true;
@@ -79,15 +79,14 @@ export function CatalogPage() {
         if (sortParam !== 'featured') query.set('sort', sortParam);
         if (qParam.trim()) query.set('q', qParam.trim());
 
-        const res = await fetch(`/api/products?${query.toString()}`);
-        if (!res.ok) throw new Error('Não foi possível carregar o catálogo.');
-        const data = (await res.json()) as {products: Product[]};
+        const data = await apiFetch<{products: Product[]}>(`/api/products?${query.toString()}`);
         if (!active) return;
-        setProducts(data.products);
+        setProducts(Array.isArray(data.products) ? data.products : []);
         setError(null);
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : 'Erro ao buscar equipamentos.');
+        console.error('[VideoWeb CatalogPage] Error fetching products:', err);
+        setError('Não foi possível consultar o catálogo no momento. Tente novamente ou solicite atendimento técnico.');
       } finally {
         if (active) setLoading(false);
       }
@@ -96,7 +95,7 @@ export function CatalogPage() {
     return () => {
       active = false;
     };
-  }, [categoriaParam, marcaParam, disponParam, sortParam, qParam]);
+  }, [categoriaParam, marcaParam, disponParam, sortParam, qParam, retryCount]);
 
   const updateFilter = (key: string, value: string, defaultVal: string) => {
     const next = new URLSearchParams(searchParams);
@@ -131,13 +130,13 @@ export function CatalogPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
           Filtre câmeras profissionais, lentes cinematográficas, iluminação e acessórios para produção audiovisual por fabricante ou disponibilidade. Consulte também nossas{' '}
-          <a href="/marcas" className="text-zinc-200 underline decoration-zinc-700 hover:text-amber-400">
+          <Link to="/marcas" className="text-zinc-200 underline decoration-zinc-700 hover:text-amber-400">
             marcas oficiais
-          </a>{' '}
+          </Link>{' '}
           e{' '}
-          <a href="/solucoes" className="text-zinc-200 underline decoration-zinc-700 hover:text-amber-400">
+          <Link to="/solucoes" className="text-zinc-200 underline decoration-zinc-700 hover:text-amber-400">
             soluções de engenharia
-          </a>
+          </Link>
           .
         </p>
 
@@ -260,9 +259,28 @@ export function CatalogPage() {
       </div>
 
       {/* Error State */}
-      {error && (
-        <div className="mt-6 rounded-lg border border-red-900/60 bg-red-950/30 p-6 text-sm text-red-300">
-          {error}
+      {error && !loading && (
+        <div className="mt-6 flex flex-col gap-4 rounded-lg border border-zinc-800 bg-[#121216] p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-sm font-semibold text-zinc-100">Não foi possível carregar o catálogo</h2>
+            <p className="mt-1 text-xs text-zinc-400">{error}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setRetryCount((c) => c + 1)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Tentar novamente</span>
+            </button>
+            <Link
+              to="/orcamento"
+              className="rounded-md border border-zinc-700 px-4 py-2 text-xs font-medium text-zinc-200 hover:text-white"
+            >
+              Falar com Engenharia
+            </Link>
+          </div>
         </div>
       )}
 
@@ -273,19 +291,31 @@ export function CatalogPage() {
             <div key={idx} className="h-96 animate-pulse rounded-lg border border-zinc-800 bg-zinc-900/50" />
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : !error && products.length === 0 ? (
         <div className="mt-10 rounded-lg border border-zinc-800 bg-zinc-900/40 p-12 text-center">
           <h2 className="font-display text-lg font-semibold text-zinc-100">Nenhum equipamento encontrado</h2>
-          <p className="mt-2 text-sm text-zinc-400">
-            Ajuste os filtros ou solicite um equipamento específico sob encomenda diretamente com nossa engenharia.
+          <p className="mt-2 text-sm text-zinc-400 max-w-md mx-auto">
+            {categoriaParam !== 'todas' || marcaParam !== 'todas' || disponParam !== 'todos' || qParam !== ''
+              ? 'Nenhum item corresponde aos filtros aplicados. Limpe os filtros ou solicite cotação personalizada.'
+              : 'O catálogo está sem itens publicados no momento. Solicite atendimento direto com nossa equipe comercial.'}
           </p>
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="mt-5 rounded-md bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 transition-colors cursor-pointer"
-          >
-            Mostrar todos os equipamentos
-          </button>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            {(categoriaParam !== 'todas' || marcaParam !== 'todas' || disponParam !== 'todos' || qParam !== '') && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="rounded-md bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 transition-colors cursor-pointer"
+              >
+                Mostrar todos os equipamentos
+              </button>
+            )}
+            <Link
+              to="/orcamento"
+              className="rounded-md border border-zinc-700 px-4 py-2 text-xs font-medium text-zinc-200 hover:text-white"
+            >
+              Solicitar Cotação Sob Encomenda
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

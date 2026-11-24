@@ -48,22 +48,22 @@ export function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link to="/catalogo?categoria=cameras-cinema" className="hover:text-zinc-100 transition-colors">
-                  Câmeras de Cinema
+                  Câmeras & Camcorders
                 </Link>
               </li>
               <li>
-                <Link to="/catalogo?categoria=lentes-cine" className="hover:text-zinc-100 transition-colors">
-                  Lentes Cine & Anamórficas
+                <Link to="/catalogo?categoria=cameras-ptz-pov" className="hover:text-zinc-100 transition-colors">
+                  Câmeras PTZ & POV
                 </Link>
               </li>
               <li>
-                <Link to="/catalogo?categoria=iluminacao-led" className="hover:text-zinc-100 transition-colors">
-                  Iluminação LED & Fresnel
+                <Link to="/catalogo?categoria=transmissao-ip" className="hover:text-zinc-100 transition-colors">
+                  Transmissão Sem Fio & IP
                 </Link>
               </li>
               <li>
                 <Link to="/catalogo?categoria=broadcast-switchers" className="hover:text-zinc-100 transition-colors">
-                  Broadcast & Switchers
+                  Switchers & Broadcast
                 </Link>
               </li>
             </ul>
@@ -75,9 +75,6 @@ export function Footer() {
               <p className="font-mono text-xs text-zinc-300 tabular-nums">+55 11 98339-9639</p>
               <p className="text-xs text-zinc-400">financeiro@videowebcenter.com.br</p>
               <p className="text-xs text-zinc-500">Seg a Sex · 09h00 às 18h30</p>
-              <Link to="/admin" className="inline-block pt-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                Área Administrativa
-              </Link>
             </div>
           </div>
         </div>

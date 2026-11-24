@@ -5,6 +5,7 @@ import {MediaImage} from '../components/MediaImage';
 import {ProductCard} from '../components/ProductCard';
 import {useQuoteCart} from '../context/QuoteCartContext';
 import {useSeo} from '../hooks/useSeo';
+import {ApiRequestError, apiFetch} from '../lib/api';
 import {formatBrl} from '../lib/format';
 import type {Product} from '../types/domain';
 
@@ -27,18 +28,22 @@ export function ProductDetailPage() {
       try {
         setLoading(true);
         setQuantity(1);
-        const res = await fetch(`/api/products/${encodeURIComponent(targetSlug)}`);
-        if (!res.ok) {
-          throw new Error(res.status === 404 ? 'Equipamento não encontrado no catálogo.' : 'Erro ao carregar detalhes.');
-        }
-        const data = (await res.json()) as {product: Product; related: Product[]};
+        const data = await apiFetch<{product: Product; related: Product[]}>(
+          `/api/products/${encodeURIComponent(targetSlug)}`
+        );
         if (!active) return;
         setProduct(data.product);
-        setRelated(data.related);
+        setRelated(Array.isArray(data.related) ? data.related : []);
         setError(null);
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : 'Erro inesperado.');
+        console.error('[VideoWeb ProductDetailPage] Error:', err);
+        const isNotFound = err instanceof ApiRequestError && err.status === 404;
+        setError(
+          isNotFound
+            ? 'Equipamento não encontrado no catálogo atual.'
+            : 'Não foi possível carregar os detalhes deste equipamento no momento.'
+        );
       } finally {
         if (active) setLoading(false);
       }

@@ -26,9 +26,14 @@ export function formatDateTimeBr(isoDate: string): string {
 export const STUDIO_IMAGE_PRESETS: Array<{label: string; url: string}> = [
   {label: 'Câmera Cinema Rig 8K (Estúdio)', url: '/src/assets/images/hero_cinema_stage_1795521923981.jpg'},
   {label: 'Corpo Câmera Cinema Modular', url: '/src/assets/images/prod_cinema_camera_1795521924293.jpg'},
-  {label: 'Conjunto de Lentes Cine Prime', url: '/src/assets/images/prod_cine_lenses_1795521925276.jpg'},
-  {label: 'Refletor LED COB Fresnel', url: '/src/assets/images/prod_studio_lighting_1795521925302.jpg'},
-  {label: 'Gravador & Áudio Broadcast', url: '/src/assets/images/prod_pro_audio_1795521925833.jpg'},
+  {label: 'Câmera PTZ 4K & Controlador Joystick', url: '/src/assets/images/brand_ptz_broadcast_camera_1795524444970.jpg'},
+  {label: 'Conjunto de Lentes Cine & Broadcast', url: '/src/assets/images/prod_cine_lenses_1795521925276.jpg'},
+  {label: 'Transmissão Sem Fio & Encoder 5G', url: '/src/assets/images/brand_wireless_encoder_streaming_1795524445919.jpg'},
   {label: 'Switcher 12G-SDI & Monitoração', url: '/src/assets/images/prod_broadcast_switcher_1795521926372.jpg'},
+  {label: 'Refletor LED COB Fresnel', url: '/src/assets/images/prod_studio_lighting_1795521925302.jpg'},
+  {label: 'Console Digital & Microfones UHF', url: '/src/assets/images/brand_audio_console_mics_1795524447880.jpg'},
+  {label: 'Gravador & Áudio Broadcast', url: '/src/assets/images/prod_pro_audio_1795521925833.jpg'},
+  {label: 'Gimbal, Tripé Carbono & Cinema Rig', url: '/src/assets/images/brand_gimbal_tripod_rig_1795524445756.jpg'},
+  {label: 'Cases Rígidos, V-Mount & Energia Rack', url: '/src/assets/images/brand_cases_power_rack_1795524447101.jpg'},
   {label: 'Laboratório Óptico & Showroom', url: '/src/assets/images/editorial_showroom_lab_1795521926922.jpg'},
 ];

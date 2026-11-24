@@ -47,9 +47,8 @@ export function generateRobotsTxt(baseUrl: string): string {
   ].join('\n');
 }
 
-export function generateSitemapXml(baseUrl: string): string {
-  const categories = listCategories();
-  const products = listProducts();
+export async function generateSitemapXml(baseUrl: string): Promise<string> {
+  const [categories, products] = await Promise.all([listCategories(), listProducts()]);
   const today = new Date().toISOString().split('T')[0];
 
   const urls: Array<{loc: string; lastmod: string; changefreq: string; priority: string}> = [
@@ -160,7 +159,7 @@ interface RouteSeoPayload {
   jsonLdGraph: Array<Record<string, unknown>>;
 }
 
-export function resolveRouteSeo(req: Request): RouteSeoPayload {
+export async function resolveRouteSeo(req: Request): Promise<RouteSeoPayload> {
   const baseUrl = resolveBaseUrl(req);
   const pathOnly = req.path || '/';
   const defaultOgImage = `${baseUrl}/src/assets/images/hero_cinema_stage_1795521923981.jpg`;
@@ -189,8 +188,7 @@ export function resolveRouteSeo(req: Request): RouteSeoPayload {
   if (pathOnly === '/catalogo') {
     const catSlug = typeof req.query.categoria === 'string' ? req.query.categoria : '';
     const brandSlug = typeof req.query.marca === 'string' ? req.query.marca : '';
-    const categories = listCategories();
-    const brands = listBrands();
+    const [categories, brands] = await Promise.all([listCategories(), listBrands()]);
     const matchedCat = categories.find((c) => c.slug === catSlug);
     const matchedBrand = brands.find((b) => b.slug === brandSlug);
 
@@ -232,7 +230,7 @@ export function resolveRouteSeo(req: Request): RouteSeoPayload {
 
   if (pathOnly.startsWith('/produto/')) {
     const slug = decodeURIComponent(pathOnly.slice('/produto/'.length)).replace(/\/+$/, '');
-    const found = slug ? getProductBySlug(slug) : null;
+    const found = slug ? await getProductBySlug(slug) : null;
     if (!found) {
       return {
         statusCode: 404,
@@ -307,13 +305,13 @@ export function resolveRouteSeo(req: Request): RouteSeoPayload {
   if (pathOnly === '/marcas') {
     return {
       statusCode: 200,
-      title: 'Marcas Oficiais de Equipamentos Cinematográficos | VideoWeb Center',
+      title: 'Marcas Oficiais de Equipamentos Audiovisuais e Broadcast | VideoWeb Center',
       description:
-        'Fabricantes oficiais de câmeras de cinema, lentes cinematográficas e iluminação representados pela VideoWeb Center: ARRI, Sony, RED, ZEISS, Canon, Blackmagic, Sound Devices e Aputure.',
+        'Fabricantes oficiais representados pela VideoWeb Center: Blackmagic Design, Sony, Canon, Panasonic, Hollyland, Datavideo, Aputure, DJI, Sennheiser, Shure, RODE, Yamaha, Fujinon, Marshall, LiveU, Kiloview e mais.',
       canonical: `${baseUrl}/marcas`,
       robots: 'index, follow',
       ogType: 'website',
-      ogImage: `${baseUrl}/src/assets/images/prod_cine_lenses_1795521925276.jpg`,
+      ogImage: `${baseUrl}/src/assets/images/brand_ptz_broadcast_camera_1795524444970.jpg`,
       jsonLdGraph: [
         ...coreSchemas,
         {
@@ -398,8 +396,8 @@ export function resolveRouteSeo(req: Request): RouteSeoPayload {
   };
 }
 
-export function injectSeoIntoHtml(html: string, req: Request): {html: string; statusCode: number} {
-  const seo = resolveRouteSeo(req);
+export async function injectSeoIntoHtml(html: string, req: Request): Promise<{html: string; statusCode: number}> {
+  const seo = await resolveRouteSeo(req);
 
   const verificationToken = process.env.GOOGLE_SITE_VERIFICATION?.trim();
   const ga4Id = (process.env.GA4_MEASUREMENT_ID || '').trim();

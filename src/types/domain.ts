@@ -25,6 +25,7 @@ export interface Brand {
   specialty: string;
   authorizedStatus: string;
   description: string;
+  imageUrl: string;
   productCount?: number;
 }
 

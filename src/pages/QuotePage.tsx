@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useQuoteCart} from '../context/QuoteCartContext';
 import {useSeo} from '../hooks/useSeo';
+import {apiFetch} from '../lib/api';
 import {formatBrl} from '../lib/format';
 import type {QuoteRequest} from '../types/domain';
 
@@ -56,7 +57,7 @@ export function QuotePage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch('/api/quotes', {
+      const data = await apiFetch<{quote?: QuoteRequest}>('/api/quotes', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -71,9 +72,8 @@ export function QuotePage() {
           items,
         }),
       });
-      const data = (await res.json()) as {quote?: QuoteRequest; error?: string};
-      if (!res.ok || !data.quote) {
-        throw new Error(data.error || 'Erro ao enviar solicitação de orçamento.');
+      if (!data.quote) {
+        throw new Error('Erro ao enviar solicitação de orçamento.');
       }
       setSubmittedQuote(data.quote);
       clearItems();

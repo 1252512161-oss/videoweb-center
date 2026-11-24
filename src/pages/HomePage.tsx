@@ -1,10 +1,11 @@
-import {ArrowRight, ShieldCheck, Sliders, Wrench} from 'lucide-react';
+import {ArrowRight, RefreshCw, ShieldCheck, Sliders, Wrench} from 'lucide-react';
 import {motion} from 'motion/react';
 import {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {MediaImage} from '../components/MediaImage';
 import {ProductCard} from '../components/ProductCard';
 import {useSeo} from '../hooks/useSeo';
+import {apiFetch} from '../lib/api';
 import type {Brand, Category, Product} from '../types/domain';
 
 export function HomePage() {
@@ -21,33 +22,27 @@ export function HomePage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
     async function load() {
       try {
         setLoading(true);
-        const [prodRes, catRes, brandRes] = await Promise.all([
-          fetch('/api/products?featured=true'),
-          fetch('/api/categories'),
-          fetch('/api/brands'),
-        ]);
-        if (!prodRes.ok || !catRes.ok || !brandRes.ok) {
-          throw new Error('Falha ao carregar dados do catálogo.');
-        }
         const [prodJson, catJson, brandJson] = await Promise.all([
-          prodRes.json() as Promise<{products: Product[]}>,
-          catRes.json() as Promise<{categories: Category[]}>,
-          brandRes.json() as Promise<{brands: Brand[]}>,
+          apiFetch<{products: Product[]}>('/api/products?featured=true'),
+          apiFetch<{categories: Category[]}>('/api/categories'),
+          apiFetch<{brands: Brand[]}>('/api/brands'),
         ]);
         if (!active) return;
-        setFeaturedProducts(prodJson.products);
-        setCategories(catJson.categories);
-        setBrands(brandJson.brands);
+        setFeaturedProducts(Array.isArray(prodJson.products) ? prodJson.products : []);
+        setCategories(Array.isArray(catJson.categories) ? catJson.categories : []);
+        setBrands(Array.isArray(brandJson.brands) ? brandJson.brands : []);
         setError(null);
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : 'Erro ao conectar com o servidor.');
+        console.error('[VideoWeb HomePage] Error loading catalog data:', err);
+        setError('Não foi possível carregar os equipamentos no momento. Tente atualizar ou fale com nossa equipe.');
       } finally {
         if (active) setLoading(false);
       }
@@ -56,7 +51,7 @@ export function HomePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryCount]);
 
   return (
     <div className="bg-[#09090B] text-zinc-100">
@@ -126,8 +121,8 @@ export function HomePage() {
               <p className="mt-1 text-xs text-zinc-400">Estúdios e unidades móveis integrados no Brasil</p>
             </div>
             <div>
-              <p className="font-mono text-2xl font-semibold text-zinc-100 tabular-nums">8</p>
-              <p className="mt-1 text-xs text-zinc-400">Fabricantes globais com distribuição oficial</p>
+              <p className="font-mono text-2xl font-semibold text-zinc-100 tabular-nums">{brands.length || 37}</p>
+              <p className="mt-1 text-xs text-zinc-400">Fabricantes globais e nacionais com suporte oficial</p>
             </div>
             <div>
               <p className="font-mono text-2xl font-semibold text-zinc-100 tabular-nums">48h</p>
@@ -159,9 +154,28 @@ export function HomePage() {
           </Link>
         </div>
 
-        {error && (
-          <div className="mt-8 rounded-lg border border-red-900/60 bg-red-950/30 p-5 text-sm text-red-300">
-            {error}
+        {error && !loading && (
+          <div className="mt-8 flex flex-col gap-4 rounded-lg border border-zinc-800 bg-[#121216] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-display text-sm font-semibold text-zinc-100">Serviço temporariamente indisponível</h3>
+              <p className="mt-1 text-xs text-zinc-400">{error}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setRetryCount((c) => c + 1)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400 cursor-pointer"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Tentar novamente</span>
+              </button>
+              <Link
+                to="/orcamento"
+                className="rounded-md border border-zinc-700 px-4 py-2 text-xs font-medium text-zinc-200 hover:text-white"
+              >
+                Solicitar Atendimento
+              </Link>
+            </div>
           </div>
         )}
 
@@ -170,6 +184,16 @@ export function HomePage() {
             {[1, 2, 3].map((idx) => (
               <div key={idx} className="h-96 animate-pulse rounded-lg border border-zinc-800 bg-zinc-900/50" />
             ))}
+          </div>
+        ) : !error && featuredProducts.length === 0 ? (
+          <div className="mt-8 rounded-lg border border-zinc-800 bg-[#121216] p-10 text-center">
+            <p className="text-sm text-zinc-300">Nenhum equipamento em destaque cadastrado no momento.</p>
+            <Link
+              to="/catalogo"
+              className="mt-4 inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400"
+            >
+              Ver catálogo completo
+            </Link>
           </div>
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -190,31 +214,47 @@ export function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/catalogo?categoria=${cat.slug}`}
-                className="group flex flex-col justify-between rounded-lg border border-zinc-800 bg-[#121216] overflow-hidden transition-colors hover:border-amber-500/60"
-              >
-                <MediaImage
-                  src={cat.imageUrl}
-                  alt={cat.name}
-                  aspectClass="aspect-[4/3]"
-                  className="transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-                <div className="p-4">
-                  <h3 className="font-display text-sm font-semibold text-zinc-100 group-hover:text-amber-400 transition-colors">
-                    {cat.name}
-                  </h3>
-                  <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{cat.description}</p>
-                  <p className="mt-3 font-mono text-xs text-zinc-500 tabular-nums">
-                    {cat.productCount ?? 0} equipamento(s)
-                  </p>
-                </div>
+          {loading ? (
+            <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((idx) => (
+                <div key={idx} className="h-64 animate-pulse rounded-lg border border-zinc-800 bg-zinc-900/50" />
+              ))}
+            </div>
+          ) : categories.length > 0 ? (
+            <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/catalogo?categoria=${cat.slug}`}
+                  className="group flex flex-col justify-between rounded-lg border border-zinc-800 bg-[#121216] overflow-hidden transition-colors hover:border-amber-500/60"
+                >
+                  <MediaImage
+                    src={cat.imageUrl}
+                    alt={cat.name}
+                    aspectClass="aspect-[4/3]"
+                    className="transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                  <div className="p-4">
+                    <h3 className="font-display text-sm font-semibold text-zinc-100 group-hover:text-amber-400 transition-colors">
+                      {cat.name}
+                    </h3>
+                    <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{cat.description}</p>
+                    <p className="mt-3 font-mono text-xs text-zinc-500 tabular-nums">
+                      {cat.productCount ?? 0} equipamento(s)
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-8 text-xs text-zinc-400">
+              Departamentos disponíveis diretamente no{' '}
+              <Link to="/catalogo" className="text-amber-400 hover:underline">
+                catálogo completo
               </Link>
-            ))}
-          </div>
+              .
+            </p>
+          )}
         </div>
       </section>
 
@@ -287,28 +327,61 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 5. Official Brands Strip */}
+      {/* 5. Official Brands Visual Showcase */}
       <section className="border-t border-zinc-800/80 bg-[#0D0D10]">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs font-medium tracking-wider text-zinc-400 uppercase">
-              Representação Oficial Autorizada
-            </p>
-            <Link to="/marcas" className="text-xs font-medium text-amber-400 hover:text-amber-300">
-              Conhecer todas as marcas →
+            <div>
+              <p className="text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                Representação Oficial Autorizada
+              </p>
+              <h2 className="mt-1 font-display text-xl font-semibold text-zinc-100">
+                Marcas Parceiras do Nosso Catálogo
+              </h2>
+            </div>
+            <Link to="/marcas" className="text-xs font-medium text-amber-400 hover:text-amber-300 whitespace-nowrap shrink-0">
+              Conhecer todas as {brands.length || 37} marcas →
             </Link>
           </div>
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
-            {brands.map((brand) => (
-              <Link
-                key={brand.id}
-                to={`/catalogo?marca=${brand.slug}`}
-                className="flex items-center justify-center rounded-md border border-zinc-800/80 bg-zinc-900/40 px-3 py-3.5 text-center font-display text-xs font-semibold tracking-wide text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
-              >
-                {brand.name}
-              </Link>
-            ))}
-          </div>
+
+          {loading ? (
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {[1, 2, 3, 4, 5, 6].map((idx) => (
+                <div key={idx} className="h-36 animate-pulse rounded-md border border-zinc-800 bg-zinc-900/50" />
+              ))}
+            </div>
+          ) : brands.length > 0 ? (
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {brands.map((brand) => (
+                <Link
+                  key={brand.id}
+                  to={`/catalogo?marca=${brand.slug}`}
+                  className="group overflow-hidden rounded-md border border-zinc-800/80 bg-[#121216] transition-colors hover:border-amber-500/60"
+                >
+                  <MediaImage
+                    src={brand.imageUrl}
+                    alt={`Linha oficial ${brand.name}`}
+                    aspectClass="aspect-[16/9]"
+                    className="transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                  <div className="p-3">
+                    <p className="font-display text-xs font-semibold tracking-wide text-zinc-200 group-hover:text-amber-400 transition-colors truncate">
+                      {brand.name}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500 truncate">{brand.specialty}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-6 text-xs text-zinc-400">
+              Acesse a página de{' '}
+              <Link to="/marcas" className="text-amber-400 hover:underline">
+                marcas oficiais
+              </Link>{' '}
+              para consultar fabricantes representados.
+            </p>
+          )}
         </div>
       </section>
     </div>

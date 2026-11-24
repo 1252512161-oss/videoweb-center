@@ -30,18 +30,18 @@ function timingSafeStringCompare(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aHash, bHash);
 }
 
-export function getAdminAuthStatus(): AdminAuthStatus {
+export async function getAdminAuthStatus(): Promise<AdminAuthStatus> {
   if (process.env.ADMIN_PASSCODE && process.env.ADMIN_PASSCODE.trim().length > 0) {
     return {configured: true, mode: 'env'};
   }
-  const storedHash = getSetting(ADMIN_HASH_KEY);
+  const storedHash = await getSetting(ADMIN_HASH_KEY);
   if (storedHash) {
     return {configured: true, mode: 'db'};
   }
   return {configured: false, mode: 'setup'};
 }
 
-export function setupInitialAdminPasscode(passcode: string): {ok: boolean; error?: string} {
+export async function setupInitialAdminPasscode(passcode: string): Promise<{ok: boolean; error?: string}> {
   if (process.env.ADMIN_PASSCODE && process.env.ADMIN_PASSCODE.trim().length > 0) {
     return {ok: false, error: 'A senha administrativa já está definida via variável de ambiente.'};
   }
@@ -50,14 +50,14 @@ export function setupInitialAdminPasscode(passcode: string): {ok: boolean; error
     return {ok: false, error: 'A senha administrativa deve conter no mínimo 8 caracteres.'};
   }
   const hash = hashPasscode(trimmed);
-  const inserted = setSettingIfAbsent(ADMIN_HASH_KEY, hash);
+  const inserted = await setSettingIfAbsent(ADMIN_HASH_KEY, hash);
   if (!inserted) {
     return {ok: false, error: 'O acesso administrativo inicial já foi configurado anteriormente.'};
   }
   return {ok: true};
 }
 
-export function verifyAdminLogin(passcode: string): boolean {
+export async function verifyAdminLogin(passcode: string): Promise<boolean> {
   const trimmed = passcode.trim();
   if (!trimmed) return false;
 
@@ -66,7 +66,7 @@ export function verifyAdminLogin(passcode: string): boolean {
     return timingSafeStringCompare(trimmed, envPasscode);
   }
 
-  const storedHash = getSetting(ADMIN_HASH_KEY);
+  const storedHash = await getSetting(ADMIN_HASH_KEY);
   if (!storedHash) return false;
   return verifyPasscodeHash(trimmed, storedHash);
 }
