@@ -1,0 +1,6 @@
+{
+  "name": "VideoWeb Center — Equipamentos Audiovisuais & Engenharia Broadcast",
+  "description": "Plataforma comercial e engenharia audiovisual da VideoWeb Center. Câmeras de cinema, lentes cine, iluminação LED, áudio profissional e soluções broadcast.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
